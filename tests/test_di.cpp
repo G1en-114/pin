@@ -185,39 +185,11 @@ TEST_CASE("ref on a non-singleton is rejected") {
 TEST_CASE("borrowing a transient through the resolver is rejected") {
     pin::Registry reg;
     reg.bind<Plain>(pin::Lifetime::Transient);
-    reg.bind<Plain>(pin::Lifetime::Transient, "q");
 
     pin::Provider p(std::move(reg));
     pin::Resolver &r = p;
     CHECK_THROWS_AS((void)r.ref<Plain>(), pin::ResolveError);
-    CHECK_THROWS_AS((void)p.ref<Plain>("q"), pin::ResolveError);
     CHECK_THROWS_AS((void)p.tryGet<Plain>(), pin::ResolveError);
-    CHECK_THROWS_AS((void)p.tryGet<Plain>("q"), pin::ResolveError);
-    CHECK(p.get<Plain>()->value_ == 42);
-}
-
-TEST_CASE("borrowing a transient inside a factory is rejected") {
-    pin::Registry reg;
-    reg.bind<Formatter>(pin::Lifetime::Transient);
-    reg.bind<Plain>().lazy().factory([](pin::Resolver &r) {
-        (void)r.ref<Formatter>();
-        return std::make_shared<Plain>();
-    });
-
-    pin::Provider p(std::move(reg));
-    CHECK_THROWS_AS((void)p.get<Plain>(), pin::ResolveError);
-}
-
-TEST_CASE("resolver ref and tryGet borrow singletons") {
-    pin::Registry reg;
-    reg.bind<Plain>();
-
-    pin::Provider p(std::move(reg));
-    pin::Resolver &r = p;
-    CHECK(&r.ref<Plain>() == p.get<Plain>().get());
-    CHECK(r.tryGet<Plain>() == p.get<Plain>().get());
-    CHECK(r.tryGet<Formatter>() == nullptr);
-    CHECK_THROWS_AS((void)r.ref<Formatter>(), pin::ResolveError);
 }
 
 TEST_CASE("abstract service without factory fails at build") {

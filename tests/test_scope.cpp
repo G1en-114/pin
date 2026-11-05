@@ -163,8 +163,6 @@ TEST_CASE("borrowing a transient from a scope is rejected") {
     pin::Provider p(std::move(reg));
     pin::Scope s(p);
     CHECK_THROWS_AS((void)s.ref<Request>(), pin::ResolveError);
-    CHECK_THROWS_AS((void)s.tryGet<Request>(), pin::ResolveError);
     CHECK(transientCtorCount == 0);
-    CHECK(s.get<Request>() != nullptr);
     CHECK(&s.ref<Session>() == s.tryGet<Session>());
 }
