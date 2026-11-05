@@ -125,11 +125,12 @@ class Registry {
         return bind<Service>(qualifier).instance(std::move(obj));
     }
 
+    // Taken by value so that lvalues, rvalues and braced initializers all
+    // work, with Service either deduced or given explicitly.
     template <typename Service>
-    Binding<Service> instance(Service &&value,
-                              std::string_view qualifier = {}) {
+    Binding<Service> instance(Service value, std::string_view qualifier = {}) {
         return bind<Service>(qualifier).instance(
-            std::make_shared<Service>(std::forward<Service>(value)));
+            std::make_shared<Service>(std::move(value)));
     }
 
   private:
