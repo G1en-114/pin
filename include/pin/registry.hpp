@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -125,12 +126,20 @@ class Registry {
         return bind<Service>(qualifier).instance(std::move(obj));
     }
 
-    // Taken by value so that lvalues, rvalues and braced initializers all
-    // work, with Service either deduced or given explicitly.
     template <typename Service>
-    Binding<Service> instance(Service value, std::string_view qualifier = {}) {
+    Binding<Service> instance(const Service &value,
+                              std::string_view qualifier = {}) {
         return bind<Service>(qualifier).instance(
-            std::make_shared<Service>(std::move(value)));
+            std::make_shared<Service>(value));
+    }
+
+    template <typename Service>
+        requires(!std::is_lvalue_reference_v<Service>)
+    Binding<std::remove_cv_t<Service>>
+    instance(Service &&value, std::string_view qualifier = {}) {
+        using Impl = std::remove_cv_t<Service>;
+        return bind<Impl>(qualifier).instance(
+            std::make_shared<Impl>(std::move(value)));
     }
 
   private:
