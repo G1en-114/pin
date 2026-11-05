@@ -77,7 +77,14 @@ class Application {
         }
     }
 
+    // Starts all modules, invokes main, then stops them. Modules are not
+    // required to support restarting, so run() may be called only once per
+    // Application, even if a previous call failed.
     template <typename F> void run(F &&main) {
+        if (ran_) {
+            throw Error("pin: Application::run() can only be called once");
+        }
+        ran_ = true;
         startAll();
         try {
             main(provider_);
@@ -234,6 +241,7 @@ class Application {
     unsigned threads_;
     bool started_ = false;
     bool stopped_ = false;
+    bool ran_ = false;
 };
 
 inline Application Host::build() {

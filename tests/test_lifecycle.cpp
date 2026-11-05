@@ -126,6 +126,19 @@ struct SelfDep : pin::Module {
     using Depends = pin::Deps<SelfDep>;
 };
 
+struct CountingModule : pin::Module {
+    int *starts_;
+    int *stops_;
+    CountingModule(int &starts, int &stops)
+        : starts_(&starts), stops_(&stops) {}
+    void start(pin::Resolver &) override { ++*starts_; }
+    void stop() noexcept override { ++*stops_; }
+};
+
+struct FailingStart : pin::Module {
+    void start(pin::Resolver &) override { throw std::runtime_error("nope"); }
+};
+
 struct RunThrows : pin::Module {
     Log *l_;
     explicit RunThrows(Log &ref) : l_(&ref) {}
@@ -283,4 +296,33 @@ TEST_CASE("modules without declared dependencies form one level") {
     pin::Application app = host.build();
     app.run([](pin::Resolver &) {});
     CHECK(l.events_.size() == 6);
+}
+
+TEST_CASE("run can only be called once") {
+    int starts = 0;
+    int stops = 0;
+    pin::Host host;
+    host.add<CountingModule>(starts, stops);
+    pin::Application app = host.build();
+
+    app.run([](pin::Resolver &) {});
+    CHECK_THROWS_AS(app.run([](pin::Resolver &) {}), pin::Error);
+    CHECK(starts == 1);
+    CHECK(stops == 1);
+}
+
+TEST_CASE("run cannot be retried after a failed start") {
+    int starts = 0;
+    int stops = 0;
+    pin::Host host;
+    host.add<CountingModule>(starts, stops).add<FailingStart>();
+    pin::Application app = host.build();
+
+    CHECK_THROWS_AS(app.run([](pin::Resolver &) {}), pin::Error);
+    const int startsAfterFirst = starts;
+    CHECK(stops == startsAfterFirst);
+    CHECK_THROWS_WITH_AS(app.run([](pin::Resolver &) {}),
+                         doctest::Contains("only be called once"), pin::Error);
+    CHECK(starts == startsAfterFirst);
+    CHECK(stops == startsAfterFirst);
 }
